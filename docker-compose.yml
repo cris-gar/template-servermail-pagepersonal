@@ -1,0 +1,72 @@
+version: "3"
+
+services:
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+      container_name: nginx-proxy
+      restart: always
+      ports:
+        - "80:80"
+        - "443:443"
+      volumes:
+        - /var/run/docker.sock:/tmp/docker.sock:ro
+        - /certs:/etc/nginx/certs:ro
+        - /vhostd:/etc/nginx/vhost.d
+        - /html:/usr/share/nginx/html
+        - /mailserver:/usr/share/nginx/html/.well-known
+        - ./htpasswd:/etc/nginx/htpasswd
+      labels:
+        - com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy
+    letsencrypt:
+      image: jrcs/letsencrypt-nginx-proxy-companion
+      container_name: letsencrypt
+      restart: always
+      environment:
+        - NGINX_PROXY_CONTAINER=nginx-proxy
+      volumes:
+        - /certs:/etc/nginx/certs:rw
+        - /vhostd:/etc/nginx/vhost.d
+        - /html:/usr/share/nginx/html
+        - /mailserver:/usr/share/nginx/html/.well-known
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+    mailserver:
+      env_file:
+        - ./.env
+        image: analogic/poste.io:2
+        container_name: mailserver
+        restart: always
+        expose:
+          - 80
+        ports:
+          - "25:25"
+          - "110:110"
+          - "143:143"
+          - "587:587"
+          - "993:993"
+          - "995:995"
+          - "4190:4190"
+        environment:
+          - VIRTUAL_HOST=${NGINX_HOST_MAIL}
+          - LETSENCRYPT_HOST=${NGINX_HOST_MAIL}
+          - LETSENCRYPT_EMAIL=${CORREO_LETSENCRYPT}
+          - HTTPS=OFF
+          - DISABLE_CLAMAV=TRUE
+        volumes:
+          - /etc/localtime:/etc/localtime:ro
+          - /data-email:/data
+          - /mailserver:/opt/www/.well-known
+    web:
+      env_file:
+        - ./.env
+      image: nginx:alpine
+      container_name: web
+      restart: always
+      volumes:
+        - ./html:/var/www/html
+        - ./nginx:/etc/nginx/conf.d
+      expose:
+        - 80
+      environment:
+        - VIRTUAL_HOST=${NGINX_HOST_PRINCIPAL}
+        - LETSENCRYPT_HOST=${NGINX_HOST_PRINCIPAL}
+        - LETSENCRYPT_EMAIL=${CORREO_LETSENCRYPT}
