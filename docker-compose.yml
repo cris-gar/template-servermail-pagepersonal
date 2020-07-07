@@ -14,7 +14,6 @@ services:
         - /vhostd:/etc/nginx/vhost.d
         - /html:/usr/share/nginx/html
         - /mailserver:/usr/share/nginx/html/.well-known
-        - ./htpasswd:/etc/nginx/htpasswd
       labels:
         - com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy
     letsencrypt:
